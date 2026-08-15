@@ -1,0 +1,820 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Blåtimen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#0d1522; --deep:#16223a; --deeper:#111a2c; --line:#243352;
+  --frost:#d6e0f0; --mute:#7d8ca8; --amber:#e8a33d; --moss:#6fb59a; --rust:#cb6f5e;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:radial-gradient(120% 70% at 50% 0%, #1b2a45 0%, var(--ink) 62%) fixed;
+  color:var(--frost); font-family:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  font-size:16px; display:flex; justify-content:center;
+  padding:0 16px calc(20px + env(safe-area-inset-bottom));
+}
+#app{width:100%;max-width:520px;display:flex;flex-direction:column;min-height:100%}
+header{display:flex;align-items:baseline;gap:10px;padding:22px 2px 12px}
+.mark{font-family:"Newsreader",Georgia,serif;font-size:22px}
+.mark em{font-style:italic;color:var(--amber)}
+.sub{font-size:11px;color:var(--mute);letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+
+/* chain + score bar */
+.hud{display:flex;align-items:center;gap:10px;padding:0 2px 12px;font-size:12px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase}
+.hud b{color:var(--frost);font-weight:500}
+.chain{color:var(--amber);transition:transform .18s}
+.chain.pop{transform:scale(1.35)}
+.arc{display:flex;gap:5px;flex:1}
+.arc i{height:3px;flex:1;background:var(--line);border-radius:2px;transition:background .3s}
+.arc i.done{background:var(--amber)} .arc i.miss{background:var(--rust)}
+
+.card{background:linear-gradient(180deg,var(--deep),var(--deeper));border:1px solid var(--line);border-radius:14px;padding:22px 18px}
+.eyebrow{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+.eyebrow b{color:var(--amber);font-weight:500}
+.prompt{font-family:"Newsreader",Georgia,serif;font-size:clamp(21px,5.6vw,27px);line-height:1.35;font-weight:300}
+.hintline{margin-top:10px;font-size:13.5px;color:var(--mute);line-height:1.45}
+
+.slot{margin-top:20px;min-height:64px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;display:flex;flex-wrap:wrap;gap:7px;align-content:flex-start}
+.slot:empty::after{content:"Trykk på ordene i riktig rekkefølge";color:#4d5c78;font-size:13px}
+.bank{margin-top:16px;display:flex;flex-wrap:wrap;gap:7px}
+.tile{font-family:"Newsreader",Georgia,serif;font-size:18px;font-weight:500;background:#1e2d49;border:1px solid var(--line);color:var(--frost);padding:7px 12px;border-radius:9px;cursor:pointer;transition:transform .12s,opacity .12s}
+.tile:active{transform:translateY(1px)}
+.tile.ghost{opacity:.22;pointer-events:none}
+
+.choices{margin-top:20px;display:flex;flex-direction:column;gap:9px}
+.choice{text-align:left;font-family:"Newsreader",Georgia,serif;font-size:18px;background:#1e2d49;border:1px solid var(--line);color:var(--frost);padding:13px 15px;border-radius:10px;cursor:pointer;width:100%}
+.choice.right{border-color:var(--moss);background:#1b3a33;color:#cbeadd}
+.choice.wrong{border-color:var(--rust);background:#3a2320;color:#f0cdc5}
+
+.veil{margin-top:20px;padding:18px 0;border-top:1px solid var(--line);font-family:"Newsreader",Georgia,serif;font-size:clamp(21px,5.6vw,27px);line-height:1.35;color:var(--amber);filter:blur(9px);opacity:.5;transition:filter .5s,opacity .5s;cursor:pointer;user-select:none}
+.veil.clear{filter:blur(0);opacity:1}
+.veilnote{font-size:12px;color:var(--mute);margin-top:2px}
+
+.row{display:flex;gap:9px;margin-top:16px}
+button{font-family:inherit;font-size:15px}
+.btn{flex:1;padding:14px 12px;border-radius:11px;cursor:pointer;background:transparent;border:1px solid var(--line);color:var(--frost);transition:background .15s}
+.btn:hover{background:#1d2b46}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1b1204;font-weight:700}
+.btn.sm{flex:0 0 auto;padding:11px 14px;font-size:13.5px;color:var(--mute)}
+.btn.moss{border-color:#2f5c50;color:var(--moss)}
+.btn.rust{border-color:#5c352c;color:var(--rust)}
+.btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.btn[disabled]{opacity:.45;cursor:default}
+
+.feedback{margin-top:16px;font-size:14px;line-height:1.5;border-left:2px solid var(--line);padding-left:12px}
+.feedback.ok{border-color:var(--moss)} .feedback.no{border-color:var(--rust)}
+.feedback .fix{font-family:"Newsreader",Georgia,serif;font-size:19px;color:var(--frost);display:block;margin-bottom:5px}
+.feedback .why{color:var(--mute)}
+
+nav{margin-top:auto;padding-top:26px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+nav button{background:none;border:none;color:var(--mute);font-size:12.5px;letter-spacing:.05em;padding:9px 9px;cursor:pointer;border-radius:8px}
+nav button:hover{color:var(--frost)} nav button.on{color:var(--amber)}
+
+.panel{margin-top:16px}
+.panel h3{font-family:"Newsreader",Georgia,serif;font-weight:300;font-size:20px;margin:0 0 10px}
+.panel p{font-size:14px;color:var(--mute);line-height:1.6;margin:0 0 12px}
+textarea,input{width:100%;background:#101a2c;border:1px solid var(--line);color:var(--frost);border-radius:10px;padding:11px;font-family:"Space Grotesk",sans-serif;font-size:15px}
+textarea,input.serif{font-family:"Newsreader",Georgia,serif;font-size:17px}
+select{width:100%;background:#101a2c;border:1px solid var(--line);color:var(--frost);border-radius:10px;padding:11px;font-family:inherit;font-size:14px}
+input[type=range]{padding:0;accent-color:var(--amber)}
+.lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:16px 0 7px}
+.lbl:first-child{margin-top:0}
+.stat{display:flex;gap:20px;margin:4px 0 16px}
+.stat div{font-size:10.5px;color:var(--mute);letter-spacing:.12em;text-transform:uppercase}
+.stat b{display:block;font-family:"Newsreader",Georgia,serif;font-size:30px;font-weight:300;color:var(--frost);letter-spacing:0;text-transform:none}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:9px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--mute);cursor:pointer;font-size:13px}
+.seg button.on{border-color:var(--amber);color:var(--amber)}
+.big{font-family:"Newsreader",Georgia,serif;font-size:56px;font-weight:300;line-height:1;text-align:center;padding:10px 0}
+.timer{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:14px}
+.timer i{display:block;height:100%;background:var(--amber);transition:width 1s linear}
+svg.sky{width:100%;display:block;border-radius:10px;background:linear-gradient(180deg,#1a2942,#0c1424)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+  <header><div class="mark">Blå<em>timen</em></div><div class="sub" id="subline"></div></header>
+  <div class="hud" id="hud"></div>
+  <div id="main"></div>
+  <nav>
+    <button data-go="drill">Økt</button>
+    <button data-go="fast">Kjapt</button>
+    <button data-go="shadow">Skygg</button>
+    <button data-go="gen">Flere</button>
+    <button data-go="stats">Byen</button>
+    <button data-go="set">Innstillinger</button>
+  </nav>
+</div>
+
+<script>
+/* ==========================================================================
+   BLÅTIMEN v2 — Norwegian sentence-production trainer for a Dutch speaker.
+   Stages per item:  box 0 build (tiles) → box 1 pick (chunk) → box 2+ recall.
+   ========================================================================== */
+
+const BANK = [
+/* --- hverdag ---------------------------------------------------------- */
+{no:"Det går fint.",nl:"Dat is prima.",en:"That's fine.",tag:"hverdag"},
+{no:"Jeg skal bare ta en titt.",nl:"Ik ga even kijken.",en:"I'll just have a look.",tag:"hverdag",gap:"ta en titt",alts:["se en titt","ta et blikk","gjøre en titt"]},
+{no:"Kan du sende meg saltet?",nl:"Kun je me het zout aangeven?",en:"Can you pass me the salt?",tag:"hverdag",gap:"saltet",alts:["salten","det salt","en salt"],note:"salt is neuter: et salt → saltet."},
+{no:"Jeg vet ikke helt.",nl:"Ik weet het niet zeker.",en:"I'm not quite sure.",tag:"hverdag"},
+{no:"Det spiller ingen rolle.",nl:"Het maakt niet uit.",en:"It doesn't matter.",tag:"hverdag",gap:"ingen",alts:["ikke en","ingenting","inge"]},
+{no:"Jeg tror jeg tar en kaffe.",nl:"Ik denk dat ik koffie neem.",en:"I think I'll have a coffee.",tag:"hverdag",note:"No 'at' needed after tror — Norwegian drops it far more readily than Dutch drops 'dat'."},
+{no:"Har du tid et øyeblikk?",nl:"Heb je even tijd?",en:"Do you have a moment?",tag:"hverdag"},
+{no:"Jeg må stikke nå.",nl:"Ik moet er nu vandoor.",en:"I have to run now.",tag:"hverdag"},
+{no:"Vi ses på mandag.",nl:"Tot maandag.",en:"See you Monday.",tag:"hverdag",gap:"på",alts:["i","om","til"],note:"Days take på: på mandag, på fredag."},
+{no:"Det er greit for meg.",nl:"Wat mij betreft is dat goed.",en:"That works for me.",tag:"hverdag"},
+{no:"Det er ikke så farlig.",nl:"Het is niet zo erg.",en:"It's not a big deal.",tag:"hverdag",gap:"så",alts:["sånn","slik","altfor"],note:"Fixed idiom: ikke så farlig."},
+{no:"Det ordner seg.",nl:"Het komt goed.",en:"It'll work out.",tag:"hverdag",gap:"seg",alts:["deg","sitt","selv"]},
+{no:"Vi tar det senere.",nl:"We doen het later.",en:"We'll take it later.",tag:"hverdag"},
+{no:"Jeg holder på med noe annet.",nl:"Ik ben met iets anders bezig.",en:"I'm busy with something else.",tag:"hverdag",gap:"holder på med",alts:["holder med","er på med","holder til med"]},
+{no:"Jeg orker ikke i dag.",nl:"Ik heb er vandaag geen puf voor.",en:"I can't face it today.",tag:"hverdag",note:"orke — no clean Dutch equivalent. Very high frequency."},
+{no:"Vi får se.",nl:"We zien wel.",en:"We'll see.",tag:"hverdag"},
+{no:"Det kan hende.",nl:"Dat kan.",en:"That may be.",tag:"hverdag"},
+{no:"Jeg skjønner hva du mener.",nl:"Ik snap wat je bedoelt.",en:"I see what you mean.",tag:"hverdag"},
+{no:"Kan du gjenta det?",nl:"Kun je dat herhalen?",en:"Can you say that again?",tag:"hverdag"},
+{no:"Hva heter det på norsk?",nl:"Hoe heet dat in het Noors?",en:"What's that called in Norwegian?",tag:"hverdag",gap:"på norsk",alts:["i norsk","på norske","norsk"]},
+{no:"Jeg husker ikke ordet.",nl:"Ik weet het woord niet meer.",en:"I can't remember the word.",tag:"hverdag"},
+{no:"Unnskyld, jeg hørte ikke hva du sa.",nl:"Sorry, ik verstond niet wat je zei.",en:"Sorry, I didn't catch that.",tag:"hverdag"},
+{no:"Nå ble jeg litt forvirret.",nl:"Nu raak ik even in de war.",en:"Now I'm a bit confused.",tag:"hverdag"},
+
+/* --- modalpartikler (jo, da, vel, nok, bare) --------------------------- */
+{no:"Det er jo helt greit.",nl:"Dat is toch prima.",en:"That's perfectly fine, though.",tag:"partikkel",gap:"jo",alts:["da","vel","nok"],note:"jo ≈ Dutch 'toch': appeals to something both already know."},
+{no:"Det tar vel en time.",nl:"Het duurt wel een uur.",en:"It'll take an hour, I suppose.",tag:"partikkel",gap:"vel",alts:["jo","da","nok"],note:"vel = I assume, uncertain."},
+{no:"Det går nok fint.",nl:"Het komt vast wel goed.",en:"It'll probably be fine.",tag:"partikkel",gap:"nok",alts:["vel","jo","da"],note:"nok = probably, fairly confident. Not 'enough' here."},
+{no:"Kom da!",nl:"Kom nou!",en:"Come on!",tag:"partikkel"},
+{no:"Kan du bare vente litt?",nl:"Kun je even wachten?",en:"Can you just wait a moment?",tag:"partikkel",note:"bare ≈ Dutch 'even/maar' — softens a request."},
+
+/* --- bestemt form og eiendom ------------------------------------------ */
+{no:"Boka ligger på bordet.",nl:"Het boek ligt op tafel.",en:"The book is on the table.",tag:"bestemt form",gap:"på bordet",alts:["på bord","på det bordet","i bordet"]},
+{no:"Bilen står i garasjen.",nl:"De auto staat in de garage.",en:"The car is in the garage.",tag:"bestemt form"},
+{no:"Jeg har glemt telefonen min hjemme.",nl:"Ik ben mijn telefoon thuis vergeten.",en:"I left my phone at home.",tag:"eiendom",gap:"telefonen min",alts:["telefon min","min telefonen","telefonen mi"],note:"Possessive follows the noun and the noun stays definite. telefon is masculine → min."},
+{no:"Kollegaen min er syk i dag.",nl:"Mijn collega is vandaag ziek.",en:"My colleague is ill today.",tag:"eiendom"},
+{no:"Sønnen min går på skolen.",nl:"Mijn zoon zit op school.",en:"My son is at school.",tag:"eiendom"},
+{no:"Jeg satte koppen på bordet.",nl:"Ik zette de kop op tafel.",en:"I put the cup on the table.",tag:"bestemt form"},
+{no:"Nøklene ligger i lomma.",nl:"De sleutels zitten in mijn zak.",en:"The keys are in the pocket.",tag:"bestemt form",gap:"lomma",alts:["lommen min","lomme","lommet"],note:"ei lomme is feminine → lomma."},
+{no:"Vesken hennes står i gangen.",nl:"Haar tas staat in de gang.",en:"Her bag is in the hallway.",tag:"eiendom"},
+
+/* --- leddsetning: ikke foran verbet ------------------------------------ */
+{no:"Jeg kommer ikke fordi jeg ikke har tid.",nl:"Ik kom niet omdat ik geen tijd heb.",en:"I'm not coming because I don't have time.",tag:"leddsetning",gap:"jeg ikke har tid",alts:["jeg har ikke tid","jeg har tid ikke","ikke jeg har tid"],note:"In a subordinate clause ikke moves IN FRONT of the verb. Main: jeg har ikke tid. Sub: fordi jeg ikke har tid."},
+{no:"Han sa at han ikke visste det.",nl:"Hij zei dat hij het niet wist.",en:"He said he didn't know.",tag:"leddsetning",gap:"han ikke visste det",alts:["han visste ikke det","han visste det ikke","ikke han visste det"]},
+{no:"Jeg lurer på om hun ikke kommer.",nl:"Ik vraag me af of ze niet komt.",en:"I wonder whether she isn't coming.",tag:"leddsetning",gap:"om",alts:["hvis","at","når"],note:"'whether' = om. hvis is only conditional 'if'."},
+{no:"Jeg vet at det ikke stemmer.",nl:"Ik weet dat het niet klopt.",en:"I know that's not right.",tag:"leddsetning"},
+{no:"Hun spurte hvorfor jeg ikke sa noe.",nl:"Ze vroeg waarom ik niets zei.",en:"She asked why I said nothing.",tag:"leddsetning"},
+{no:"Jeg håper at det ikke regner i morgen.",nl:"Ik hoop dat het morgen niet regent.",en:"I hope it doesn't rain tomorrow.",tag:"leddsetning"},
+
+/* --- ordstilling: V2 ---------------------------------------------------- */
+{no:"I morgen skal jeg på jobb.",nl:"Morgen ga ik naar mijn werk.",en:"Tomorrow I'm going to work.",tag:"ordstilling",gap:"skal jeg",alts:["jeg skal","jeg går","skal meg"],note:"Verb second: something in front → subject and verb swap. Same rule as Dutch."},
+{no:"Etterpå går vi en tur.",nl:"Daarna gaan we een stukje wandelen.",en:"Afterwards we'll go for a walk.",tag:"ordstilling"},
+{no:"Om en time må jeg gå.",nl:"Over een uur moet ik gaan.",en:"In an hour I have to leave.",tag:"ordstilling",gap:"må jeg",alts:["jeg må","jeg skal må","må meg"]},
+{no:"Da vi kom hjem, var det mørkt.",nl:"Toen we thuiskwamen, was het donker.",en:"When we got home it was dark.",tag:"ordstilling"},
+{no:"Heldigvis rakk vi toget.",nl:"Gelukkig haalden we de trein.",en:"Luckily we caught the train.",tag:"ordstilling"},
+
+/* --- verb, modalverb, å ------------------------------------------------- */
+{no:"Jeg kan komme i morgen.",nl:"Ik kan morgen komen.",en:"I can come tomorrow.",tag:"verb",gap:"komme",alts:["å komme","kommer","kom"],note:"No å after modals: kan, må, skal, vil, bør."},
+{no:"Vi må snakke sammen.",nl:"We moeten met elkaar praten.",en:"We need to talk.",tag:"verb"},
+{no:"Jeg prøver å komme tidligere.",nl:"Ik probeer eerder te komen.",en:"I'm trying to come earlier.",tag:"verb",gap:"å komme",alts:["komme","kommer","å kommer"],note:"Non-modal verbs do take å."},
+{no:"Jeg begynner å bli sulten.",nl:"Ik begin honger te krijgen.",en:"I'm starting to get hungry.",tag:"verb"},
+{no:"Du burde ha sagt det før.",nl:"Je had het eerder moeten zeggen.",en:"You should have said so earlier.",tag:"verb"},
+{no:"Jeg pleier å stå opp klokka seks.",nl:"Ik sta meestal om zes uur op.",en:"I usually get up at six.",tag:"verb",gap:"pleier å",alts:["pleier","bruker å stå","er vant å"]},
+
+/* --- preposisjoner ------------------------------------------------------ */
+{no:"Jeg er på jobb nå.",nl:"Ik ben nu op mijn werk.",en:"I'm at work now.",tag:"preposisjon",gap:"på",alts:["i","til","ved"]},
+{no:"Vi drar bort i helga.",nl:"We gaan dit weekend weg.",en:"We're going away this weekend.",tag:"preposisjon",gap:"i helga",alts:["på helga","om helga","ved helga"]},
+{no:"Hva skal vi ha til middag?",nl:"Wat eten we vanavond?",en:"What are we having for dinner?",tag:"preposisjon",gap:"til",alts:["for","på","om"]},
+{no:"Jeg ringer deg om en time.",nl:"Ik bel je over een uur.",en:"I'll call you in an hour.",tag:"preposisjon",gap:"om",alts:["i","på","etter"],note:"om = in (future). i en time = for an hour."},
+{no:"Han er flink til å lage mat.",nl:"Hij kan goed koken.",en:"He's good at cooking.",tag:"preposisjon",gap:"til å",alts:["på å","i å","med å"]},
+{no:"Jeg gleder meg til helga.",nl:"Ik verheug me op het weekend.",en:"I'm looking forward to the weekend.",tag:"preposisjon",gap:"til",alts:["på","for","om"],note:"Dutch 'op' → Norwegian til."},
+{no:"Jeg er enig med deg.",nl:"Ik ben het met je eens.",en:"I agree with you.",tag:"preposisjon",gap:"med",alts:["til","om","på"],note:"enig MED a person, enig I a statement."},
+{no:"Hun er interessert i musikk.",nl:"Ze is geïnteresseerd in muziek.",en:"She's interested in music.",tag:"preposisjon"},
+{no:"Jeg venter på svar.",nl:"Ik wacht op antwoord.",en:"I'm waiting for a reply.",tag:"preposisjon",gap:"på",alts:["for","etter","til"]},
+{no:"Det avhenger av været.",nl:"Dat hangt van het weer af.",en:"It depends on the weather.",tag:"preposisjon",gap:"av været",alts:["på været","fra været","om været"]},
+
+/* --- retning vs. sted (hjem/hjemme, ut/ute) ----------------------------- */
+{no:"Jeg er hjemme nå.",nl:"Ik ben nu thuis.",en:"I'm home now.",tag:"retning",gap:"hjemme",alts:["hjem","heime","hjemmet"],note:"hjemme = place, hjem = movement. Same pair: ute/ut, inne/inn, oppe/opp, nede/ned."},
+{no:"Jeg går hjem nå.",nl:"Ik ga nu naar huis.",en:"I'm going home now.",tag:"retning",gap:"hjem",alts:["hjemme","til hjem","hjemmet"]},
+{no:"Barna leker ute.",nl:"De kinderen spelen buiten.",en:"The children are playing outside.",tag:"retning",gap:"ute",alts:["ut","utenfor","ute i"]},
+{no:"Skal vi gå ut i kveld?",nl:"Zullen we vanavond uitgaan?",en:"Shall we go out tonight?",tag:"retning",gap:"ut",alts:["ute","uten","utover"]},
+{no:"Han sitter inne på kontoret.",nl:"Hij zit binnen op kantoor.",en:"He's in the office.",tag:"retning"},
+{no:"Vi må opp tidlig i morgen.",nl:"We moeten morgen vroeg op.",en:"We have to get up early tomorrow.",tag:"retning"},
+{no:"Katten er oppe på taket.",nl:"De kat zit boven op het dak.",en:"The cat is up on the roof.",tag:"retning",gap:"oppe",alts:["opp","opper","oppi"]},
+
+/* --- tid ---------------------------------------------------------------- */
+{no:"Klokka er halv tre.",nl:"Het is half drie.",en:"It's half past two.",tag:"tid",note:"halv tre = 2:30, exactly like Dutch half drie. English speakers get this wrong; you won't."},
+{no:"Vi møtes kvart over ni.",nl:"We spreken af om kwart over negen.",en:"We're meeting at quarter past nine.",tag:"tid"},
+{no:"Jeg har holdt på i to timer.",nl:"Ik ben al twee uur bezig.",en:"I've been at it for two hours.",tag:"tid",gap:"i",alts:["om","på","for"],note:"i + duration. om = in (future)."},
+{no:"Det tar bare fem minutter.",nl:"Het duurt maar vijf minuten.",en:"It only takes five minutes.",tag:"tid"},
+{no:"Vi har ikke sett hverandre på lenge.",nl:"We hebben elkaar lang niet gezien.",en:"We haven't seen each other in ages.",tag:"tid",gap:"på lenge",alts:["i lenge","siden lenge","for lenge"]},
+{no:"Jeg var der i fjor.",nl:"Ik was daar vorig jaar.",en:"I was there last year.",tag:"tid",gap:"i fjor",alts:["siste år","forrige år","i forrige år"]},
+{no:"Neste uke reiser vi bort.",nl:"Volgende week gaan we weg.",en:"Next week we're going away.",tag:"tid"},
+{no:"Jeg står opp klokka halv sju.",nl:"Ik sta om half zeven op.",en:"I get up at half past six.",tag:"tid"},
+
+/* --- butikk og service --------------------------------------------------- */
+{no:"Kan jeg få en kaffe, takk?",nl:"Mag ik een koffie, alstublieft?",en:"Could I have a coffee, please?",tag:"butikk",gap:"få",alts:["ha","ta","bestille"],note:"få is the default for ordering."},
+{no:"Har dere denne i en større størrelse?",nl:"Heeft u deze in een grotere maat?",en:"Do you have this in a bigger size?",tag:"butikk"},
+{no:"Hva koster det?",nl:"Wat kost het?",en:"How much is it?",tag:"butikk"},
+{no:"Kan jeg betale med kort?",nl:"Kan ik met kaart betalen?",en:"Can I pay by card?",tag:"butikk",gap:"med kort",alts:["på kort","i kort","med kortet"]},
+{no:"Det holder, takk.",nl:"Zo is het genoeg, dank je.",en:"That's enough, thanks.",tag:"butikk"},
+{no:"Jeg skal bare se litt.",nl:"Ik kijk alleen even rond.",en:"I'm just looking.",tag:"butikk"},
+
+/* --- transport ------------------------------------------------------------ */
+{no:"Toget går fra spor tre.",nl:"De trein vertrekt van spoor drie.",en:"The train leaves from platform three.",tag:"transport",gap:"fra",alts:["av","ut","på"]},
+{no:"Jeg tar bussen inn til byen.",nl:"Ik neem de bus naar de stad.",en:"I'll take the bus into town.",tag:"transport"},
+{no:"Vi kom for sent til flyet.",nl:"We waren te laat voor het vliegtuig.",en:"We were too late for the plane.",tag:"transport",gap:"for sent til",alts:["for sen til","for sent for","sent til"]},
+{no:"Er det langt å gå?",nl:"Is het ver lopen?",en:"Is it far to walk?",tag:"transport"},
+{no:"Bussen er forsinket igjen.",nl:"De bus is weer te laat.",en:"The bus is delayed again.",tag:"transport"},
+
+/* --- kropp og helse -------------------------------------------------------- */
+{no:"Jeg har vondt i hodet.",nl:"Ik heb hoofdpijn.",en:"I have a headache.",tag:"kropp",gap:"vondt i",alts:["vondt på","smerte i","vond i"],note:"ha vondt i + body part."},
+{no:"Jeg har blitt forkjølet.",nl:"Ik ben verkouden geworden.",en:"I've caught a cold.",tag:"kropp"},
+{no:"Det gjør vondt her.",nl:"Het doet hier pijn.",en:"It hurts here.",tag:"kropp"},
+{no:"Jeg er helt utslitt.",nl:"Ik ben helemaal op.",en:"I'm completely exhausted.",tag:"kropp"},
+
+/* --- følelser -------------------------------------------------------------- */
+{no:"Jeg ble litt skuffet.",nl:"Ik was een beetje teleurgesteld.",en:"I was a bit disappointed.",tag:"følelser"},
+{no:"Han ble sur på meg.",nl:"Hij werd boos op me.",en:"He got annoyed with me.",tag:"følelser",gap:"på",alts:["med","til","over"]},
+{no:"Jeg er lei av å vente.",nl:"Ik ben het wachten zat.",en:"I'm tired of waiting.",tag:"følelser",gap:"lei av",alts:["lei med","trøtt av","lei for"]},
+{no:"Jeg savner dem.",nl:"Ik mis ze.",en:"I miss them.",tag:"følelser"},
+{no:"Det var utrolig fint.",nl:"Dat was ontzettend mooi.",en:"That was incredibly nice.",tag:"følelser"},
+
+/* --- relativsetning og 'det' ------------------------------------------------ */
+{no:"Mannen som bor der, er lege.",nl:"De man die daar woont is arts.",en:"The man who lives there is a doctor.",tag:"relativ",gap:"som",alts:["hvem","den som","hvilken"],note:"som covers who/which/that — always som."},
+{no:"Det er noe jeg må tenke på.",nl:"Dat is iets waar ik over na moet denken.",en:"That's something I need to think about.",tag:"relativ"},
+{no:"Boka jeg leser nå, er veldig bra.",nl:"Het boek dat ik nu lees is heel goed.",en:"The book I'm reading now is very good.",tag:"relativ"},
+{no:"Det er mange som mener det samme.",nl:"Er zijn veel mensen die hetzelfde vinden.",en:"There are many who think the same.",tag:"relativ"},
+
+/* --- passiv og man ---------------------------------------------------------- */
+{no:"Man må bestille bord på forhånd.",nl:"Je moet vooraf een tafel reserveren.",en:"You have to book a table in advance.",tag:"passiv",gap:"på forhånd",alts:["i forhånd","forhånd","på forhand"]},
+{no:"Døra låses automatisk.",nl:"De deur gaat automatisch op slot.",en:"The door locks automatically.",tag:"passiv",note:"s-passive: låse → låses."},
+{no:"Det sies at han slutter.",nl:"Er wordt gezegd dat hij stopt.",en:"They say he's leaving.",tag:"passiv"},
+{no:"Møtet ble flyttet til torsdag.",nl:"De vergadering is naar donderdag verplaatst.",en:"The meeting was moved to Thursday.",tag:"passiv",gap:"ble",alts:["blir","var","har"],note:"bli + past participle = passive."},
+
+/* --- fortid ------------------------------------------------------------------ */
+{no:"Jeg glemte å si det.",nl:"Ik vergat het te zeggen.",en:"I forgot to say it.",tag:"fortid"},
+{no:"Vi dro hjem tidlig.",nl:"We gingen vroeg naar huis.",en:"We went home early.",tag:"fortid"},
+{no:"Har du sett filmen?",nl:"Heb je de film gezien?",en:"Have you seen the film?",tag:"fortid",gap:"sett",alts:["så","ser","sett på"]},
+{no:"Jeg har ikke rukket det ennå.",nl:"Ik ben er nog niet aan toegekomen.",en:"I haven't got round to it yet.",tag:"fortid",gap:"ennå",alts:["enda mer","allerede","fortsatt"],note:"ennå = yet/still. enda = even (enda bedre)."},
+{no:"Vi hadde allerede spist.",nl:"We hadden al gegeten.",en:"We had already eaten.",tag:"fortid"},
+{no:"Hun ringte mens jeg lagde mat.",nl:"Ze belde terwijl ik kookte.",en:"She called while I was cooking.",tag:"fortid"},
+
+/* --- jobb ---------------------------------------------------------------------- */
+{no:"Jeg må se på tallene igjen.",nl:"Ik moet nog eens naar de cijfers kijken.",en:"I need to look at the numbers again.",tag:"jobb"},
+{no:"Kan du sende meg utkastet?",nl:"Kun je me het concept sturen?",en:"Can you send me the draft?",tag:"jobb"},
+{no:"Jeg rekker det ikke før fredag.",nl:"Ik red het niet voor vrijdag.",en:"I won't manage it before Friday.",tag:"jobb"},
+{no:"Vi bør snakke om dette på møtet.",nl:"We moeten het hierover hebben in de vergadering.",en:"We should discuss this at the meeting.",tag:"jobb"},
+{no:"Jeg finner ikke ut av det.",nl:"Ik kom er niet uit.",en:"I can't figure it out.",tag:"jobb",gap:"ut av",alts:["ut","opp","av ut"]},
+{no:"Jeg sitter i møte til klokka to.",nl:"Ik zit tot twee uur in een vergadering.",en:"I'm in a meeting until two.",tag:"jobb",gap:"i møte",alts:["på møte","i møtet","på et møte"]},
+{no:"Har du fått mailen min?",nl:"Heb je mijn mail gekregen?",en:"Did you get my email?",tag:"jobb"},
+{no:"Kan vi ta det på tirsdag i stedet?",nl:"Kunnen we het in plaats daarvan dinsdag doen?",en:"Can we do it Tuesday instead?",tag:"jobb",gap:"i stedet",alts:["i stede","istedenfor det","i stedet av"]},
+{no:"Jeg har lest gjennom utkastet.",nl:"Ik heb het concept doorgelezen.",en:"I've read through the draft.",tag:"jobb"},
+{no:"Det ble ikke som planlagt.",nl:"Het liep niet zoals gepland.",en:"It didn't go as planned.",tag:"jobb"},
+{no:"Fristen er på fredag.",nl:"De deadline is vrijdag.",en:"The deadline is Friday.",tag:"jobb"},
+
+/* --- hjemme --------------------------------------------------------------------- */
+{no:"Har du pusset tennene?",nl:"Heb je je tanden gepoetst?",en:"Have you brushed your teeth?",tag:"hjemme"},
+{no:"Vi må ut døra om fem minutter.",nl:"We moeten over vijf minuten de deur uit.",en:"We need to be out the door in five minutes.",tag:"hjemme",gap:"om",alts:["i","på","etter"]},
+{no:"Middagen er klar.",nl:"Het eten is klaar.",en:"Dinner's ready.",tag:"hjemme"},
+{no:"Kle på deg, vi skal gå.",nl:"Kleed je aan, we gaan.",en:"Get dressed, we're leaving.",tag:"hjemme"},
+{no:"Skynd deg, vi er sent ute!",nl:"Schiet op, we zijn laat!",en:"Hurry up, we're late!",tag:"hjemme",gap:"sent ute",alts:["sen ute","ute sent","for sent ute"],note:"være sent ute = to be running late."},
+{no:"Har du med deg matpakka?",nl:"Heb je je boterhammen bij je?",en:"Have you got your packed lunch?",tag:"hjemme"},
+{no:"Legg fra deg telefonen.",nl:"Leg je telefoon weg.",en:"Put the phone down.",tag:"hjemme"},
+{no:"Rydd opp etter deg.",nl:"Ruim je rommel op.",en:"Clean up after yourself.",tag:"hjemme"},
+{no:"Sov godt.",nl:"Slaap lekker.",en:"Sleep well.",tag:"hjemme"},
+{no:"Vil du ha mer?",nl:"Wil je nog meer?",en:"Do you want more?",tag:"hjemme"},
+
+/* --- vær ------------------------------------------------------------------------- */
+{no:"Det er kaldt ute i dag.",nl:"Het is koud buiten vandaag.",en:"It's cold out today.",tag:"vær"},
+{no:"Det snør ute.",nl:"Het sneeuwt buiten.",en:"It's snowing outside.",tag:"vær"},
+{no:"Det blåser kraftig i dag.",nl:"Het waait hard vandaag.",en:"It's blowing hard today.",tag:"vær"},
+{no:"Sola er endelig framme.",nl:"De zon is er eindelijk.",en:"The sun is finally out.",tag:"vær"},
+{no:"Det ble mørkt tidlig i dag.",nl:"Het werd vandaag vroeg donker.",en:"It got dark early today.",tag:"vær"},
+
+/* --- mengde og sammenligning ------------------------------------------------------- */
+{no:"Det er lettere enn jeg trodde.",nl:"Het is makkelijker dan ik dacht.",en:"It's easier than I thought.",tag:"sammenligning",gap:"enn",alts:["som","av","fra"]},
+{no:"Jo mer jeg leser, desto bedre blir det.",nl:"Hoe meer ik lees, hoe beter het wordt.",en:"The more I read, the better it gets.",tag:"sammenligning"},
+{no:"Jeg har nesten ingenting igjen.",nl:"Ik heb bijna niets meer over.",en:"I have almost nothing left.",tag:"mengde",gap:"igjen",alts:["tilbake","over","att"],note:"igjen = left over."},
+{no:"Det er altfor mye.",nl:"Dat is veel te veel.",en:"That's far too much.",tag:"mengde"},
+{no:"Vi har nok tid.",nl:"We hebben genoeg tijd.",en:"We have enough time.",tag:"mengde",note:"Here nok really does mean 'enough' — position tells you which."},
+{no:"Litt til, takk.",nl:"Nog een beetje, graag.",en:"A little more, please.",tag:"mengde"},
+
+/* --- mening ------------------------------------------------------------------------ */
+{no:"Jeg synes det er en god idé.",nl:"Ik vind het een goed idee.",en:"I think that's a good idea.",tag:"mening",gap:"en god idé",alts:["et godt idé","en godt idé","et god idé"],note:"en idé is masculine. synes = vinden (opinion), tror = denken (belief)."},
+{no:"Jeg tror ikke det stemmer.",nl:"Ik denk niet dat het klopt.",en:"I don't think that's right.",tag:"mening"},
+{no:"Jeg mener vi bør vente.",nl:"Ik vind dat we moeten wachten.",en:"I think we should wait.",tag:"mening"},
+{no:"Jeg er ikke helt sikker.",nl:"Ik ben er niet helemaal zeker van.",en:"I'm not entirely sure.",tag:"mening"},
+{no:"Det kommer an på hva du mener.",nl:"Dat hangt ervan af wat je bedoelt.",en:"It depends what you mean.",tag:"mening",gap:"kommer an på",alts:["kommer på","henger av","avhenger på"]},
+
+/* --- be om / invitere ---------------------------------------------------------------- */
+{no:"Kan du hjelpe meg med noe?",nl:"Kun je me ergens mee helpen?",en:"Can you help me with something?",tag:"be om"},
+{no:"Har du lyst til å bli med?",nl:"Heb je zin om mee te gaan?",en:"Do you feel like joining?",tag:"be om",gap:"lyst til å",alts:["lyst å","lyst på å","lyst for å"]},
+{no:"Skal vi ta en kaffe?",nl:"Zullen we een koffie doen?",en:"Shall we get a coffee?",tag:"be om"},
+{no:"Det hadde vært fint.",nl:"Dat zou fijn zijn.",en:"That would be nice.",tag:"be om"},
+{no:"Kan du slå av lyset?",nl:"Kun je het licht uitdoen?",en:"Can you turn off the light?",tag:"be om",gap:"slå av",alts:["slå ut","sette av","lukke av"]},
+{no:"Blir du med på tur?",nl:"Ga je mee wandelen?",en:"Are you coming along?",tag:"be om"},
+
+/* --- refleksiv ------------------------------------------------------------------------- */
+{no:"Jeg gleder meg.",nl:"Ik verheug me erop.",en:"I'm looking forward to it.",tag:"refleksiv"},
+{no:"Sett deg ned.",nl:"Ga zitten.",en:"Sit down.",tag:"refleksiv"},
+{no:"Jeg føler meg litt sliten.",nl:"Ik voel me een beetje moe.",en:"I feel a bit tired.",tag:"refleksiv",gap:"meg",alts:["seg","min","mig"]},
+{no:"Han skyndte seg til bussen.",nl:"Hij haastte zich naar de bus.",en:"He hurried to the bus.",tag:"refleksiv"},
+{no:"De har flyttet seg litt.",nl:"Ze zijn een stukje opgeschoven.",en:"They've moved over a bit.",tag:"refleksiv"},
+
+/* --- betingelse ------------------------------------------------------------------------ */
+{no:"Hvis jeg hadde visst det, hadde jeg sagt fra.",nl:"Als ik het geweten had, had ik iets gezegd.",en:"If I'd known, I'd have said something.",tag:"betingelse",gap:"hadde jeg sagt fra",alts:["jeg hadde sagt fra","hadde sagt jeg fra","jeg sa fra"],note:"The main clause comes second, so verb first: V2 again."},
+{no:"Jeg skulle ønske jeg kunne bli.",nl:"Ik wou dat ik kon blijven.",en:"I wish I could stay.",tag:"betingelse"},
+{no:"Det hadde vært lettere med bil.",nl:"Met een auto zou het makkelijker zijn.",en:"It would have been easier with a car.",tag:"betingelse"},
+{no:"Ha en fin helg!",nl:"Fijn weekend!",en:"Have a good weekend!",tag:"hverdag"}
+];
+
+/* ---------- storage ------------------------------------------------------ */
+const KEY="blatimen.v2";
+let S;
+try{ S=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ S={}; }
+S.boxes=S.boxes||{}; S.own=S.own||[]; S.lang=S.lang||"nl"; S.log=S.log||{};
+S.cfg=Object.assign({voice:"",rate:0.92,tts:"system",gkey:"",gvoice:"nb-NO-Wavenet-E",
+  ekey:"",evoice:"",akey:"",model:"claude-sonnet-4-6"},S.cfg||{});
+S.best=S.best||0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+
+const DAY=864e5, N=10, INTERVALS=[0,1,2,4,8,16,30];
+const items=()=>BANK.map((it,i)=>({...it,id:"s"+i})).concat(S.own);
+const state=id=>S.boxes[id]||{box:0,due:0};
+function grade(id,ok,demote=true){
+  const st=state(id);
+  st.box = ok ? Math.min(st.box+1,6) : (demote?Math.max(st.box-1,0):st.box);
+  st.due = Date.now()+INTERVALS[st.box]*DAY;
+  S.boxes[id]=st;
+  const d=new Date().toISOString().slice(0,10); S.log[d]=(S.log[d]||0)+1;
+  save();
+}
+const mode=b=>b===0?"build":b===1?"pick":"recall";
+
+/* ---------- audio: system voice, or real neural TTS ---------------------- */
+let voices=[];
+function loadVoices(){ voices=(window.speechSynthesis?speechSynthesis.getVoices():[])
+  .filter(v=>/^(nb|no|nn)/i.test(v.lang)); }
+if(window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged=loadVoices; }
+
+/* tiny IndexedDB blob cache so each sentence is synthesised once */
+let dbp=null;
+function db(){
+  if(dbp) return dbp;
+  dbp=new Promise(res=>{
+    const r=indexedDB.open("blatimen-audio",1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("clips");
+    r.onsuccess=()=>res(r.result); r.onerror=()=>res(null);
+  });
+  return dbp;
+}
+async function cacheGet(k){ const d=await db(); if(!d) return null;
+  return new Promise(res=>{ const q=d.transaction("clips").objectStore("clips").get(k);
+    q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }); }
+async function cachePut(k,v){ const d=await db(); if(!d) return;
+  d.transaction("clips","readwrite").objectStore("clips").put(v,k); }
+
+let audio=null;
+async function say(text){
+  const c=S.cfg;
+  if(c.tts==="system" || (c.tts==="google"&&!c.gkey) || (c.tts==="eleven"&&!c.ekey)){
+    if(!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="nb-NO"; u.rate=c.rate;
+    const v=voices.find(v=>v.voiceURI===c.voice)||voices[0];
+    if(v) u.voice=v;
+    speechSynthesis.speak(u); return;
+  }
+  const key=c.tts+"|"+(c.tts==="google"?c.gvoice:c.evoice)+"|"+c.rate+"|"+text;
+  let blob=await cacheGet(key);
+  if(!blob){
+    try{
+      if(c.tts==="google"){
+        const r=await fetch("https://texttospeech.googleapis.com/v1/text:synthesize?key="+encodeURIComponent(c.gkey),{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({input:{text},voice:{languageCode:"nb-NO",name:c.gvoice},
+            audioConfig:{audioEncoding:"MP3",speakingRate:c.rate}})});
+        const j=await r.json();
+        if(!j.audioContent) throw new Error(j.error?j.error.message:"no audio");
+        const bin=atob(j.audioContent), arr=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+        blob=new Blob([arr],{type:"audio/mpeg"});
+      }else{
+        const r=await fetch("https://api.elevenlabs.io/v1/text-to-speech/"+encodeURIComponent(c.evoice),{
+          method:"POST",headers:{"xi-api-key":c.ekey,"Content-Type":"application/json"},
+          body:JSON.stringify({text,model_id:"eleven_multilingual_v2"})});
+        if(!r.ok) throw new Error("TTS "+r.status);
+        blob=await r.blob();
+      }
+      await cachePut(key,blob);
+    }catch(e){ console.warn("TTS fallback:",e.message); S.cfg.tts="system"; return say(text); }
+  }
+  if(audio) audio.pause();
+  audio=new Audio(URL.createObjectURL(blob)); audio.playbackRate=1; audio.play();
+}
+
+/* ---------- helpers -------------------------------------------------------- */
+const $=s=>document.querySelector(s);
+const main=$("#main"), hud=$("#hud"), subline=$("#subline");
+const norm=s=>s.replace(/[.,!?;:]/g,"").trim();
+const words=s=>norm(s).split(/\s+/);
+const shuffle=a=>a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const ask=it=>S.lang==="nl"?it.nl:it.en;
+const blank=(no,gap)=>{
+  const re=new RegExp("(^|\\s)"+gap.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[\\s.,!?])");
+  return esc(no).replace(re,'$1<span style="color:var(--amber)">·····</span>');
+};
+
+/* ---------- session + game state -------------------------------------------- */
+let session=[],cursor=0,marks=[],chain=0,best=0,score=0;
+function buildSession(){
+  const now=Date.now(), all=items();
+  const due=all.filter(it=>S.boxes[it.id]&&state(it.id).due<=now).sort((a,b)=>state(a.id).due-state(b.id).due);
+  const fresh=all.filter(it=>!S.boxes[it.id]);
+  session=due.slice(0,N);
+  for(const f of fresh){ if(session.length>=N) break; session.push(f); }
+  if(session.length<N){
+    const ids=new Set(session.map(s=>s.id));
+    session=session.concat(all.filter(it=>!ids.has(it.id))
+      .sort((a,b)=>state(a.id).box-state(b.id).box).slice(0,N-session.length));
+  }
+  cursor=0; marks=[]; chain=0; best=0; score=0;
+}
+function drawHud(){
+  hud.innerHTML=`<span class="arc" id="arcbar"></span>
+    <span class="chain" id="ch">×${chain}</span><span><b>${score}</b> p</span>`;
+  const bar=$("#arcbar");
+  for(let i=0;i<session.length;i++){
+    const el=document.createElement("i");
+    if(marks[i]===1) el.className="done"; if(marks[i]===0) el.className="miss";
+    bar.appendChild(el);
+  }
+}
+function tally(ok){
+  if(ok){ chain++; best=Math.max(best,chain); score+=10+(chain-1)*5; }
+  else chain=0;
+  drawHud();
+  const c=$("#ch"); if(c&&ok){ c.classList.add("pop"); setTimeout(()=>c.classList.remove("pop"),180); }
+}
+
+/* ---------- router ----------------------------------------------------------- */
+let view="drill";
+const VIEWS={drill:()=>{buildSession();render();},fast:renderFast,shadow:renderShadow,
+             gen:renderGen,stats:renderStats,set:renderSettings};
+function go(v){ view=v;
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.go===v));
+  if(v!=="drill"&&v!=="fast") hud.innerHTML="";
+  VIEWS[v]();
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.go));
+
+/* ---------- drill ------------------------------------------------------------- */
+function render(){
+  drawHud();
+  if(cursor>=session.length) return renderDone();
+  const it=session[cursor], st=state(it.id), m=mode(st.box);
+  subline.textContent=(cursor+1)+" / "+session.length;
+  if(m==="build") return renderBuild(it);
+  if(m==="pick"&&it.gap) return renderPick(it);
+  return renderRecall(it);
+}
+const fb=(it,ok)=>`<div class="feedback ${ok?"ok":"no"}">
+  <span class="fix">${esc(it.no)}</span>
+  <span class="why">${esc(it.note||ask(it))}</span></div>
+  <div class="row"><button class="btn primary" id="next">Neste</button></div>`;
+function wire(it,ok){
+  tally(ok); marks[cursor]=ok?1:0; drawHud(); say(it.no);
+  $(".card").insertAdjacentHTML("beforeend",fb(it,ok));
+  $("#next").onclick=()=>{cursor++;render();}; $("#next").focus();
+}
+
+function renderBuild(it){
+  const target=words(it.no);
+  const decoys=shuffle(items().flatMap(x=>words(x.no))).filter(w=>!target.includes(w)).slice(0,2);
+  const pool=shuffle(target.concat(decoys));
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow"><b>Bygg</b> · ${esc(it.tag||"egen")}</div>
+    <div class="prompt">${esc(ask(it))}</div>
+    <div class="slot" id="slot"></div>
+    <div class="bank" id="bank">${pool.map((w,i)=>`<button class="tile" data-i="${i}">${esc(w)}</button>`).join("")}</div>
+    <div class="row"><button class="btn sm" id="undo">Angre</button>
+      <button class="btn primary" id="check">Sjekk</button></div></div>`;
+  const slot=$("#slot"); let picked=[];
+  $("#bank").querySelectorAll(".tile").forEach(t=>t.onclick=()=>{
+    t.classList.add("ghost"); picked.push({w:t.textContent,el:t});
+    slot.insertAdjacentHTML("beforeend",`<span class="tile">${esc(t.textContent)}</span>`);
+  });
+  $("#undo").onclick=()=>{const p=picked.pop(); if(p){p.el.classList.remove("ghost"); slot.lastChild.remove();}};
+  $("#check").onclick=()=>{
+    const ok=picked.map(p=>p.w).join(" ")===target.join(" ");
+    grade(it.id,ok);
+    $("#check").remove(); $("#undo").remove();
+    wire(it,ok);
+  };
+}
+
+function renderPick(it){
+  const opts=shuffle([it.gap].concat(it.alts));
+  const shown=blank(it.no,it.gap);
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow"><b>Velg</b> · ${esc(it.tag||"egen")}</div>
+    <div class="prompt">${shown}</div>
+    <div class="hintline">${esc(ask(it))}</div>
+    <div class="choices">${opts.map((o,i)=>`<button class="choice" data-o="${i}">${esc(o)}</button>`).join("")}</div></div>`;
+  main.querySelectorAll(".choice").forEach((b,i)=>b.onclick=()=>{
+    const ok=opts[i]===it.gap;
+    main.querySelectorAll(".choice").forEach((c,j)=>{c.disabled=true;
+      if(opts[j]===it.gap) c.classList.add("right"); else if(j===i) c.classList.add("wrong");});
+    grade(it.id,ok); wire(it,ok);
+  });
+}
+
+function renderRecall(it){
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow"><b>Si det høyt</b> · ${esc(it.tag||"egen")}</div>
+    <div class="prompt">${esc(ask(it))}</div>
+    <div class="veil" id="veil">${esc(it.no)}</div>
+    <div class="veilnote" id="vn">Si setningen høyt. Trykk for fasit.</div>
+    <div class="row" id="ctl"><button class="btn primary" id="reveal">Vis fasit</button></div></div>`;
+  const veil=$("#veil");
+  const reveal=()=>{
+    veil.classList.add("clear"); veil.onclick=null; say(it.no);
+    $("#vn").textContent="Hvordan gikk det?";
+    $("#ctl").innerHTML=`<button class="btn rust" id="g0">Nei</button>
+      <button class="btn" id="g1">Nesten</button><button class="btn moss" id="g2">Lett</button>`;
+    $("#g0").onclick=()=>fin(false); $("#g1").onclick=()=>fin(false); $("#g2").onclick=()=>fin(true);
+    $("#g2").focus();
+  };
+  veil.onclick=reveal; $("#reveal").onclick=reveal;
+  function fin(ok){ grade(it.id,ok); tally(ok); marks[cursor]=ok?1:0; cursor++; render(); }
+}
+
+function renderDone(){
+  subline.textContent="ferdig"; hud.innerHTML="";
+  const hits=marks.filter(m=>m===1).length;
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow">Økt ferdig</div>
+    <div class="big" style="color:var(--amber)">${score}</div>
+    <div class="hintline" style="text-align:center;margin-top:-4px">
+      ${hits} av ${marks.length} · lengste kjede ×${best}</div>
+    ${skySVG(true)}
+    <div class="row"><button class="btn" id="again">Én økt til</button>
+      <button class="btn primary" id="fast">Kjapt (60 s)</button></div></div>`;
+  $("#again").onclick=()=>{buildSession();render();};
+  $("#fast").onclick=()=>go("fast");
+}
+
+/* ---------- kjapt: 60-second speed round -------------------------------------- */
+let fastTimer=null;
+function renderFast(){
+  clearInterval(fastTimer);
+  subline.textContent="kjapt";
+  const pool=items().filter(i=>i.gap&&i.alts);
+  if(pool.length<4){ main.innerHTML=`<div class="card"><div class="prompt">Ikke nok oppgaver ennå.</div></div>`; return; }
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow"><b>Kjapt</b> · 60 sekunder, så mange du rekker</div>
+    <div class="prompt">Ingen fasit underveis. Bare velg og gå videre.</div>
+    <div class="hintline">Rekord: ${S.best} poeng.</div>
+    <div class="row"><button class="btn primary" id="start">Start</button></div></div>`;
+  $("#start").onclick=()=>runFast(shuffle(pool));
+}
+function runFast(pool){
+  let t=60,pts=0,i=0,streak=0;
+  const tick=()=>{ t--; const b=$("#tbar"); if(b) b.style.width=(t/60*100)+"%";
+    if(t<=0){ clearInterval(fastTimer); endFast(pts); } };
+  fastTimer=setInterval(tick,1000);
+  const step=()=>{
+    if(i>=pool.length) pool=shuffle(pool),i=0;
+    const it=pool[i++], opts=shuffle([it.gap].concat(it.alts));
+    const shown=blank(it.no,it.gap);
+    main.innerHTML=`<div class="card">
+      <div class="eyebrow">${pts} poeng · kjede ×${streak}</div>
+      <div class="prompt">${shown}</div>
+      <div class="choices">${opts.map((o,j)=>`<button class="choice" data-j="${j}">${esc(o)}</button>`).join("")}</div>
+      <div class="timer"><i id="tbar" style="width:${t/60*100}%"></i></div></div>`;
+    main.querySelectorAll(".choice").forEach((b,j)=>b.onclick=()=>{
+      const ok=opts[j]===it.gap;
+      if(ok){ streak++; pts+=10+(streak-1)*5; grade(it.id,true); step(); }
+      else{ streak=0; b.classList.add("wrong");
+        main.querySelectorAll(".choice").forEach((c,k)=>{if(opts[k]===it.gap)c.classList.add("right");});
+        setTimeout(step,700); }
+    });
+  };
+  step();
+}
+function endFast(pts){
+  const rec=pts>S.best; if(rec){ S.best=pts; save(); }
+  subline.textContent="tiden er ute";
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow">${rec?"Ny rekord":"Tiden er ute"}</div>
+    <div class="big" style="color:var(--amber)">${pts}</div>
+    <div class="hintline" style="text-align:center">Rekord: ${S.best}</div>
+    <div class="row"><button class="btn primary" id="again">Én gang til</button>
+      <button class="btn" id="back">Tilbake til økt</button></div></div>`;
+  $("#again").onclick=()=>renderFast(); $("#back").onclick=()=>go("drill");
+}
+
+/* ---------- skygg ---------------------------------------------------------------- */
+let shadowList=[],si=0;
+function renderShadow(){
+  subline.textContent="skygging";
+  if(!shadowList.length){ shadowList=shuffle(items()); si=0; }
+  const it=shadowList[si%shadowList.length];
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow"><b>Skygg</b> · gjenta høyt rett etter stemmen</div>
+    <div class="prompt">${esc(it.no)}</div>
+    <div class="hintline">${esc(ask(it))}</div>
+    <div class="row"><button class="btn" id="rep">Spill igjen</button>
+      <button class="btn primary" id="nx">Neste</button></div></div>
+    <div class="panel"><p>Ingen svar, ingen poeng. Bare munnen i gang.</p></div>`;
+  say(it.no);
+  $("#rep").onclick=()=>say(it.no);
+  $("#nx").onclick=()=>{si++;renderShadow();};
+}
+
+/* ---------- flere setninger: import + generate ------------------------------------ */
+function weakTags(){
+  const acc={};
+  items().forEach(it=>{ const t=it.tag||"egen"; const b=state(it.id).box;
+    acc[t]=acc[t]||{n:0,s:0}; acc[t].n++; acc[t].s+=b; });
+  return Object.entries(acc).map(([t,v])=>[t,v.s/v.n]).sort((a,b)=>a[1]-b[1]).slice(0,4).map(x=>x[0]);
+}
+function renderGen(){
+  subline.textContent="flere setninger";
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow">Fra det du leser</div>
+    <div class="lbl">Norsk setning</div>
+    <textarea id="ino" rows="2" placeholder="Han hadde ikke tenkt på det før."></textarea>
+    <div class="lbl">Oversettelse (valgfri)</div>
+    <input class="serif" id="itr" placeholder="Daar had hij niet eerder aan gedacht.">
+    <div class="row"><button class="btn primary" id="add">Legg til</button></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="eyebrow">Lag nye automatisk</div>
+    <div class="hintline" style="margin:0 0 12px">Svakest nå: ${weakTags().join(", ")||"—"}.
+      Krever Anthropic-nøkkel under Innstillinger.</div>
+    <div class="row"><button class="btn" id="g10">10 nye</button>
+      <button class="btn primary" id="g25">25 nye</button></div>
+    <div class="hintline" id="gmsg"></div>
+  </div>
+  <div class="panel"><p id="ownlist"></p></div>`;
+  const list=()=>$("#ownlist").innerHTML=S.own.length
+    ? `<b>${S.own.length} egne setninger.</b><br>`+S.own.slice(-12).map(o=>"· "+esc(o.no)).join("<br>")
+    : "Ingen egne setninger ennå.";
+  list();
+  $("#add").onclick=()=>{
+    const no=$("#ino").value.trim(); if(!no) return;
+    const tr=$("#itr").value.trim()||"—";
+    S.own.push({id:"o"+Date.now(),no,nl:tr,en:tr,tag:"egen"}); save();
+    $("#ino").value="";$("#itr").value="";list();
+  };
+  $("#g10").onclick=()=>generate(10); $("#g25").onclick=()=>generate(25);
+}
+async function generate(n){
+  const msg=$("#gmsg");
+  if(!S.cfg.akey){ msg.textContent="Legg inn en Anthropic-nøkkel under Innstillinger først."; return; }
+  msg.textContent="Lager "+n+" setninger …";
+  const existing=items().map(i=>i.no).slice(-140).join("\n");
+  const prompt=`Generate ${n} Norwegian bokmål practice sentences for a Dutch native speaker with strong reading comprehension but almost no active production. Everyday spoken register, 4-9 words, the kind of thing actually said at home, at work or in a shop.
+
+Weight them toward these weak categories: ${weakTags().join(", ")}.
+
+Target the specific places where Dutch interferes: ikke before the verb in subordinate clauses, postposed possessives with definite nouns, verb-second after a fronted element, hjemme/hjem-type place-vs-direction pairs, prepositions that differ from Dutch, å after non-modal verbs only.
+
+Do not repeat any of these existing sentences:
+${existing}
+
+Return ONLY a JSON array, no prose, no markdown fences. Each object:
+{"no":"...","nl":"Dutch translation","en":"English translation","tag":"one lowercase Norwegian category word","gap":"a 1-3 word chunk that appears verbatim in no","alts":["wrong1","wrong2","wrong3"],"note":"one short English line on the Dutch trap, or omit"}
+gap must be an exact substring of no. alts must be clearly wrong, never merely a valid alternative.`;
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"content-type":"application/json","x-api-key":S.cfg.akey,
+        "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:S.cfg.model,max_tokens:4000,messages:[{role:"user",content:prompt}]})});
+    const j=await r.json();
+    if(j.error) throw new Error(j.error.message);
+    let txt=j.content.filter(c=>c.type==="text").map(c=>c.text).join("").trim();
+    txt=txt.replace(/^```(?:json)?/,"").replace(/```$/,"").trim();
+    const arr=JSON.parse(txt);
+    const have=new Set(items().map(i=>i.no));
+    let added=0;
+    arr.forEach(o=>{
+      if(!o.no||have.has(o.no)) return;
+      if(o.gap&&!o.no.includes(o.gap)){ delete o.gap; delete o.alts; }
+      if(o.gap&&(!Array.isArray(o.alts)||o.alts.length<3)){ delete o.gap; delete o.alts; }
+      S.own.push({id:"g"+Date.now()+"_"+added,no:o.no,nl:o.nl||"—",en:o.en||"—",
+        tag:o.tag||"egen",gap:o.gap,alts:o.alts,note:o.note}); added++;
+    });
+    save(); msg.textContent=added+" nye setninger lagt til. Totalt "+items().length+".";
+    renderGen();
+  }catch(e){ msg.textContent="Gikk ikke: "+e.message; }
+}
+
+/* ---------- byen: the skyline ------------------------------------------------------ */
+function skySVG(compact){
+  const all=items(), now=Date.now();
+  const cols=compact?18:16, cell=compact?9:13, gap=compact?5:7;
+  const w=cols*(cell+gap)+gap, rows=Math.ceil(all.length/cols), h=rows*(cell+gap)+gap+(compact?0:14);
+  let r=`<svg class="sky" viewBox="0 0 ${w} ${h}" style="margin-top:${compact?14:0}px">`;
+  all.forEach((it,i)=>{
+    const st=state(it.id), x=gap+(i%cols)*(cell+gap), y=gap+Math.floor(i/cols)*(cell+gap);
+    let o=0.06+st.box*0.155;                      // brighter as it settles
+    if(st.box>0&&st.due<=now) o=Math.min(o,0.30); // due for review = window dims
+    r+=`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="1.5"
+        fill="var(--amber)" opacity="${o.toFixed(2)}"></rect>`;
+  });
+  return r+"</svg>";
+}
+function renderStats(){
+  subline.textContent="byen";
+  const all=items(), seen=all.filter(it=>S.boxes[it.id]).length;
+  const solid=all.filter(it=>state(it.id).box>=3).length;
+  const today=S.log[new Date().toISOString().slice(0,10)]||0;
+  main.innerHTML=`<div class="card">
+    <div class="eyebrow">Ett vindu per setning</div>
+    ${skySVG(false)}
+    <div class="stat" style="margin-top:18px">
+      <div><b>${all.length}</b>setninger</div><div><b>${seen}</b>påbegynt</div>
+      <div><b>${solid}</b>sitter</div><div><b>${today}</b>i dag</div></div>
+    <div class="hintline">Vinduet lyser sterkere for hvert riktige svar, og dempes når setningen
+      er klar for repetisjon. Målet er en opplyst gate, ikke en streak.</div>
+  </div>`;
+}
+
+/* ---------- innstillinger ------------------------------------------------------------ */
+function renderSettings(){
+  subline.textContent="innstillinger";
+  const c=S.cfg;
+  const vopts=voices.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===c.voice?"selected":""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("");
+  main.innerHTML=`<div class="card">
+    <div class="lbl">Språk i oppgavene</div>
+    <div class="seg"><button data-l="nl" class="${S.lang==="nl"?"on":""}">Nederlands</button>
+      <button data-l="en" class="${S.lang==="en"?"on":""}">English</button></div>
+
+    <div class="lbl">Stemme</div>
+    <div class="seg"><button data-t="system" class="${c.tts==="system"?"on":""}">System</button>
+      <button data-t="google" class="${c.tts==="google"?"on":""}">Google</button>
+      <button data-t="eleven" class="${c.tts==="eleven"?"on":""}">ElevenLabs</button></div>
+
+    <div id="ttscfg"></div>
+
+    <div class="lbl">Talefart <span id="rv">${c.rate.toFixed(2)}</span></div>
+    <input type="range" id="rate" min="0.6" max="1.2" step="0.02" value="${c.rate}">
+    <div class="row"><button class="btn" id="test">Test stemmen</button></div>
+
+    <div class="lbl">Anthropic-nøkkel (for nye setninger)</div>
+    <input id="akey" type="password" value="${esc(c.akey)}" placeholder="sk-ant-…">
+    <input id="model" style="margin-top:8px" value="${esc(c.model)}">
+    <div class="hintline">Nøklene lagres bare i denne nettleseren og sendes bare til tjenesten de gjelder.</div>
+    <div class="row"><button class="btn primary" id="savecfg">Lagre</button>
+      <button class="btn sm" id="wipe">Nullstill</button></div>
+  </div>
+  <div class="panel">
+    <h3>Om stemmen</h3>
+    <p>Systemstemmen er ofte den komprimerte varianten. På iPhone og Mac: Innstillinger → Tilgjengelighet → Talt innhold → Stemmer → Norsk, og last ned Nora (Forbedret eller Premium). Forskjellen er stor og det koster ingenting.</p>
+    <p>Google og ElevenLabs gir nevrale stemmer i en annen klasse. Hver setning hentes én gang og lagres lokalt, så bruken er marginal.</p>
+  </div>`;
+  const cfgbox=$("#ttscfg");
+  const drawTts=()=>{
+    if(c.tts==="system") cfgbox.innerHTML=`<div class="lbl">Systemstemme</div>
+      <select id="voice">${vopts||'<option>Ingen norsk stemme funnet</option>'}</select>`;
+    else if(c.tts==="google") cfgbox.innerHTML=`<div class="lbl">Google Cloud TTS-nøkkel</div>
+      <input id="gkey" type="password" value="${esc(c.gkey)}" placeholder="AIza…">
+      <div class="lbl">Stemme</div>
+      <select id="gvoice">${["nb-NO-Wavenet-E","nb-NO-Wavenet-A","nb-NO-Wavenet-B","nb-NO-Wavenet-C","nb-NO-Wavenet-D","nb-NO-Standard-E"].map(v=>`<option ${v===c.gvoice?"selected":""}>${v}</option>`).join("")}</select>`;
+    else cfgbox.innerHTML=`<div class="lbl">ElevenLabs-nøkkel</div>
+      <input id="ekey" type="password" value="${esc(c.ekey)}" placeholder="sk_…">
+      <div class="lbl">Voice ID</div>
+      <input id="evoice" value="${esc(c.evoice)}" placeholder="f.eks. 21m00Tcm4TlvDq8ikWAM">`;
+  };
+  drawTts();
+  main.querySelectorAll(".seg button[data-l]").forEach(b=>b.onclick=()=>{S.lang=b.dataset.l;save();renderSettings();});
+  main.querySelectorAll(".seg button[data-t]").forEach(b=>b.onclick=()=>{c.tts=b.dataset.t;save();renderSettings();});
+  $("#rate").oninput=e=>{c.rate=parseFloat(e.target.value);$("#rv").textContent=c.rate.toFixed(2);};
+  $("#test").onclick=()=>{grab();save();say("Jeg har glemt telefonen min hjemme.");};
+  $("#savecfg").onclick=()=>{grab();save();$("#savecfg").textContent="Lagret";};
+  $("#wipe").onclick=()=>{ if(confirm("Nullstille all framgang? Egne setninger beholdes."))
+    { S.boxes={};S.log={};S.best=0;save();renderSettings(); } };
+  function grab(){
+    const g=id=>{const e=$("#"+id);return e?e.value:null;};
+    if(g("voice")!==null) c.voice=g("voice");
+    if(g("gkey")!==null) c.gkey=g("gkey").trim();
+    if(g("gvoice")!==null) c.gvoice=g("gvoice");
+    if(g("ekey")!==null) c.ekey=g("ekey").trim();
+    if(g("evoice")!==null) c.evoice=g("evoice").trim();
+    c.akey=$("#akey").value.trim(); c.model=$("#model").value.trim()||"claude-sonnet-4-6";
+    c.rate=parseFloat($("#rate").value);
+  }
+}
+
+go("drill");
+</script>
